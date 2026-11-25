@@ -6,6 +6,7 @@ Run:
     streamlit run ./app.py
 """
 
+import os
 import re
 import html
 
@@ -18,6 +19,8 @@ from typing import (
 
 import streamlit as st
 
+from ollama import Client
+
 from dt_lm import (
     ROLE_USER,
     ROLE_SYSTEM,
@@ -26,7 +29,11 @@ from dt_lm import (
     MESSAGE_NO_CONTENT_RECEIVED,
 )
 
-from dt_ollama import chat
+from dt_ollama import (
+    chat,
+    BASE_URL,
+)
+
 from dt_utility import format_seconds
 
 # ---------------------------------------------------------------------------
@@ -39,7 +46,20 @@ TITLE: Final[str] = "DT AI Translator (English ➜ فارسی)"
 # but not exactly 0.0 (which sometimes makes models repetitive).
 TEMPERATURE: Final[float] = 0.2
 
-MODEL_NAME: Final[str] = "qwen36-35b:latest".replace(" ", "").lower()
+# Ollama server address (can be changed with the OLLAMA_HOST environment variable)
+OLLAMA_HOST: Final[str] = os.environ.get("OLLAMA_HOST", BASE_URL).strip()
+
+# The model list is read from YOUR Ollama installation, so the app works with any
+# installed model. If one of these is installed, it is selected by default (in this order).
+PREFERRED_MODELS: Final[List[str]] = [
+    "qwen36-35b:latest",
+    "qwen3:8b",
+    "gemma4:26b",
+    "gemma4:e4b",
+]
+
+# Suggested to users who have no model installed yet
+RECOMMENDED_MODEL: Final[str] = "qwen3:8b"
 
 MAX_INPUT_CHARACTERS: Final[int] = 8000
 
@@ -259,7 +279,29 @@ def clean_answer(answer: Optional[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def translate(text: str, tone_key: str) -> Dict:
+@st.cache_data(ttl=30, show_spinner=False)
+def get_installed_models(host: str) -> List[str]:
+    """Return the chat models installed in Ollama (raises an error if Ollama is not reachable)."""
+
+    response = Client(host=host).list()
+
+    models: List[str] = [model.model for model in response.models if model.model]
+
+    # Embedding models cannot chat, so they are not useful for translation
+    return [model for model in models if "embed" not in model.lower()]
+
+
+def get_default_model_index(models: List[str]) -> int:
+    """Index of the first preferred model that is installed, otherwise the first model."""
+
+    for preferred_model in PREFERRED_MODELS:
+        if preferred_model in models:
+            return models.index(preferred_model)
+
+    return 0
+
+
+def translate(text: str, tone_key: str, model_name: str) -> Dict:
     """Translate the English text to Persian and return the result as a history item."""
 
     # Every request is independent (stateless): previous translations are only
@@ -271,7 +313,8 @@ def translate(text: str, tone_key: str) -> Dict:
 
     assistant_answer, elapsed_time, prompt_tokens, completion_tokens = chat(
         messages=messages,
-        model_name=MODEL_NAME,
+        base_url=OLLAMA_HOST,
+        model_name=model_name,
         temperature=TEMPERATURE,
     )
 
@@ -284,6 +327,7 @@ def translate(text: str, tone_key: str) -> Dict:
         "source_text": text,
         "translation": translation,
         "tone": tone_key,
+        "model": model_name,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
         "elapsed_time": format_seconds(seconds=elapsed_time),
@@ -337,6 +381,7 @@ def display_history_item(item: Dict, index: int) -> None:
             st.code(body=item["translation"], language=None, wrap_lines=True)
 
         st.caption(
+            f"Model: {item['model']} - "
             f"Input Tokens: {item['prompt_tokens']} - "
             f"Output Tokens: {item['completion_tokens']} - "
             f"Elapsed Time: {item['elapsed_time']}"
@@ -364,9 +409,41 @@ def main() -> None:
 
     history: List[Dict] = st.session_state[KEY_HISTORY]
 
+    # ---------- Ollama and models ----------
+    try:
+        models: List[str] = get_installed_models(host=OLLAMA_HOST)
+    except Exception:  # Ollama is not installed / not running / wrong address
+        st.error(
+            f"**Cannot connect to Ollama at `{OLLAMA_HOST}`.**\n\n"
+            "1. Install Ollama from <https://ollama.com/download>\n"
+            "2. Make sure it is running (open the Ollama app, or run `ollama serve`)\n"
+            "3. If Ollama runs on another address, set the `OLLAMA_HOST` environment variable\n\n"
+            "Then refresh this page."
+        )
+        st.stop()
+
+    if not models:
+        st.warning(
+            "**No model is installed in Ollama.**\n\n"
+            "Install one with this command, then refresh this page:\n\n"
+            f"```\nollama pull {RECOMMENDED_MODEL}\n```"
+        )
+        st.stop()
+
     # ---------- Settings (sidebar) ----------
     with st.sidebar:
         st.subheader("⚙️ Settings")
+
+        model_name: str = st.selectbox(
+            label="Model",
+            options=models,
+            index=get_default_model_index(models=models),
+            help="Models installed in your Ollama. Install more with: ollama pull <model>",
+        )
+
+        if st.button(label="🔄 Refresh model list", width="stretch"):
+            get_installed_models.clear()
+            st.rerun()
 
         tone_key: str = st.radio(
             label="Tone",
@@ -375,7 +452,7 @@ def main() -> None:
             help="The register (level of formality) of the Persian translation.",
         )
 
-        st.caption(f"Model: `{MODEL_NAME}` • Temperature: `{TEMPERATURE}`")
+        st.caption(f"Ollama: `{OLLAMA_HOST}` • Temperature: `{TEMPERATURE}`")
 
         if st.button(label="🗑️ Clear history", width="stretch", disabled=not history):
             st.session_state[KEY_HISTORY] = []
@@ -416,9 +493,10 @@ def main() -> None:
 
     try:
         with st.spinner(text="Translating to Persian..."):
-            item: Dict = translate(text=user_text, tone_key=tone_key)
-    except Exception as error:  # Ollama is not running, model not found, ...
-        st.error(f"Translation failed: {error}")
+            item: Dict = translate(text=user_text, tone_key=tone_key, model_name=model_name)
+    except Exception as error:  # Ollama stopped, model removed, out of memory, ...
+        get_installed_models.clear()
+        st.error(f"Translation failed with model `{model_name}`: {error}")
         return
 
     history.append(item)

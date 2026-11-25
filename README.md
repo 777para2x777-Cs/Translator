@@ -13,15 +13,36 @@ A professional **English ➜ Persian (Farsi)** translator chatbot built with [St
 - Prompt-injection safe: the input is always translated, never answered or obeyed
 - Rejects non-English input
 - A post-processing step fixes common issues (Arabic «ي/ك», Arabic digits, extra spaces, broken ZWNJs)
+- Works with any model installed in your Ollama (model picker in the sidebar)
 - Right-to-left output with the Vazirmatn font, translation history, and token/time stats
 
 ## Requirements
 
 - Python 3.13+
-- [Ollama](https://ollama.com) running locally (`http://127.0.0.1:11434`)
-- A model pulled in Ollama. The default is `qwen36-35b:latest`; change `MODEL_NAME` in [app.py](app.py) to use another one (e.g. `qwen3:8b`, `gemma4:26b`).
+- [Ollama](https://ollama.com/download) installed and running
+- **At least one model installed in Ollama** (see below)
 
-## Setup and run
+## 1. Install a model (important)
+
+This app does **not** ship with a model. It uses the models installed in **your own** Ollama, and you choose one from the **Model** list in the sidebar.
+
+Install a model with `ollama pull`, for example:
+
+```shell
+ollama pull qwen3:8b
+```
+
+| Model | Download size | Notes |
+|---|---|---|
+| `qwen3:8b` | ~5 GB | **Recommended.** Good Persian quality, runs on most PCs |
+| `qwen3:4b` | ~2.5 GB | Faster, for weaker hardware (lower quality) |
+| `gemma4:26b` | ~18 GB | Higher quality, needs a strong GPU / lots of RAM |
+
+Check your installed models with `ollama list`. Larger models translate better but are slower; the first translation after starting is always slower because the model is being loaded into memory.
+
+> The author's default model (`qwen36-35b:latest`) is a custom local model and is **not** available on Ollama. You don't need it: the app automatically selects the first installed model from its preferred list (`PREFERRED_MODELS` in [app.py](app.py)), or simply the first model you have.
+
+## 2. Setup and run
 
 ```powershell
 python -m venv .venv
@@ -32,6 +53,24 @@ streamlit run ./app.py
 ```
 
 Then open <http://localhost:8501>.
+
+### Ollama on another address
+
+By default the app connects to `http://127.0.0.1:11434`. If Ollama runs elsewhere, set `OLLAMA_HOST` before running:
+
+```powershell
+$env:OLLAMA_HOST = "http://192.168.1.10:11434"     # Linux/macOS: export OLLAMA_HOST=...
+streamlit run ./app.py
+```
+
+## Troubleshooting
+
+| Message in the app | Solution |
+|---|---|
+| **Cannot connect to Ollama** | Install Ollama and make sure it is running (open the app or run `ollama serve`); check `OLLAMA_HOST` |
+| **No model is installed in Ollama** | Run `ollama pull qwen3:8b`, then click **🔄 Refresh model list** or refresh the page |
+| **Translation failed ...** | The model may be too large for your RAM/GPU: choose a smaller model from the sidebar |
+| Translation is very slow | Use a smaller model (e.g. `qwen3:4b`); the first request is always slower |
 
 ## Project structure
 

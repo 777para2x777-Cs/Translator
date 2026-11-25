@@ -1,5 +1,5 @@
 """
-DT AI Translator - A professional English to Persian (Farsi) translator chatbot
+Translator - A professional English to Persian (Farsi) translator chatbot
 (Streamlit + Ollama).
 
 Run:
@@ -21,7 +21,7 @@ import streamlit as st
 
 from ollama import Client
 
-from dt_lm import (
+from lm_constants import (
     ROLE_USER,
     ROLE_SYSTEM,
     KEY_NAME_ROLE,
@@ -29,18 +29,18 @@ from dt_lm import (
     MESSAGE_NO_CONTENT_RECEIVED,
 )
 
-from dt_ollama import (
+from ollama_client import (
     chat,
     BASE_URL,
 )
 
-from dt_utility import format_seconds
+from utility import format_seconds
 
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
 
-TITLE: Final[str] = "DT AI Translator (English ➜ فارسی)"
+TITLE: Final[str] = "Translator (English ➜ فارسی)"
 
 # Low temperature = faithful and consistent translations,
 # but not exactly 0.0 (which sometimes makes models repetitive).

@@ -17,8 +17,8 @@ from ollama import (
     ChatResponse,
 )
 
-from dt_lm import KEY_NAME_TEMPRETURE
-from dt_utility import prevent_direct_execution
+from lm_constants import KEY_NAME_TEMPRETURE
+from utility import prevent_direct_execution
 
 VERSION: Final[str] = "3.0.2"
 

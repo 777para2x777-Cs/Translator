@@ -8,7 +8,7 @@ from typing import (
     Final,
 )
 
-from dt_utility import prevent_direct_execution
+from utility import prevent_direct_execution
 
 VERSION: Final[str] = "3.0.0"
 

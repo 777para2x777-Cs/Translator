@@ -1,4 +1,4 @@
-# DT Translator
+# Translator
 
 A professional **English ➜ Persian (Farsi)** translator chatbot built with [Streamlit](https://streamlit.io) and a local LLM served by [Ollama](https://ollama.com).
 
@@ -84,10 +84,10 @@ streamlit run ./app.py
 | File | Description |
 |---|---|
 | `app.py` | The Streamlit translator app (system prompt, Persian normalizer, UI) |
-| `dt_ollama.py` | Helper for calling the Ollama chat API |
-| `dt_lm.py` | Shared language-model constants |
-| `dt_utility.py` | General utilities (time formatting, etc.) |
+| `ollama_client.py` | Helper for calling the Ollama chat API |
+| `lm_constants.py` | Shared language-model constants |
+| `utility.py` | General utilities (time formatting, etc.) |
 
 ## Credits
 
-The `dt_*.py` helper modules are from Dariush Tasdighi's Streamlit learning course.
+The helper modules (`ollama_client.py`, `lm_constants.py`, `utility.py`) are adapted from Dariush Tasdighi's Streamlit learning course.

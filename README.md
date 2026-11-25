@@ -16,6 +16,13 @@ A professional **English ➜ Persian (Farsi)** translator chatbot built with [St
 - Works with any model installed in your Ollama (model picker in the sidebar)
 - Right-to-left output with the Vazirmatn font, translation history, and token/time stats
 
+## How it works
+
+1. You type or paste English text and pick a tone in the sidebar.
+2. The app builds a system prompt with translation rules, the selected tone, and Persian writing standards.
+3. The text is sent to the selected Ollama model (each request is independent, so previous translations never affect a new one).
+4. The answer is cleaned up (Persian characters, digits, spacing, and ZWNJ) and shown right-to-left.
+
 ## Requirements
 
 - Python 3.13+
